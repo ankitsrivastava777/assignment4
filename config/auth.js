@@ -11,10 +11,10 @@ var jwtAuth = function authenticateToken(req, res, next) {
   if (authHeader == null) return res.sendStatus(401)
   jwt.verify(authHeader, process.env.TOKEN_SECRET, (err, verifiedJwt) => {
     if(err){
-      res.send(err.message)
-    }else{
+        res.status(500).json({
+            message: "password not match",
+        });    }else{
         user.findOne({ username: verifiedJwt.username }, function (err, userDetails) {
-            console.log(userDetails._id);
             if (userDetails && userDetails._id) {
                 req.user = userDetails;
                 next();
