@@ -10,7 +10,7 @@ var conn = mongoose.createConnection(
     },
     function (err, db) {
         if (err) {
-            console.log("no");
+            console.log("connection not established");
         }
     }
 );
