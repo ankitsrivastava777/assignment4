@@ -168,11 +168,15 @@ app.post("/address", auth, async function (req, res) {
   address_post.save(function (err) {
     if (err) {
       res.status(500).json({
-        message: "address not saved",
+        error: 1,
+        message: err.message,
+        data: null,
       });
     }
     res.status(200).json({
-      message: "Address Saved",
+      error: 0,
+      message: "address saved",
+      data: null,
     });
   });
 });
