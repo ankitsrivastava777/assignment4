@@ -24,10 +24,10 @@ var usersprofile_schema = mongoose.Schema(
 },
   {
     strict: true,
-    collection: "newuserdata",
+    collection: "userdetails",
   }
 );
 
-var user = conn.model("newuserdata", usersprofile_schema);
+var user = conn.model("userdetails", usersprofile_schema);
 
 exports.user = user;

@@ -16,8 +16,10 @@ module.exports = function (passport) {
           })
           .then((user) => {
             if (!user) {
-              return done(null, false, {
-                message: "That username is not registered",
+              res.status(500).json({
+                error: 0,
+                message: "username not found",
+                data: null,
               });
             }
 
@@ -27,7 +29,11 @@ module.exports = function (passport) {
               if (isMatch) {
                 return done(null, user);
               } else {
-                return done(null, false, { message: "Password incorrect" });
+                res.status(200).json({
+                  error: 0,
+                  message: "password not matched",
+                  data: null,
+                });
               }
             });
           });

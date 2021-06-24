@@ -6,15 +6,16 @@ var { user } = require("../models/User");
 var { AccessToken } = require("../models/AccessToken");
 var { user_address } = require("../models/UserAddress");
 const jwt = require("jsonwebtoken");
-const dotenv = require("dotenv");
 const path = require("path");
-app.use(express.json());
 const multer = require("multer");
 var cloudinary = require("cloudinary").v2;
+const passport = require("passport");
+const Mail = require("@sendgrid/mail");
+
 cloudinary.config({
-  cloud_name: "etech",
-  api_key: "962958745652244",
-  api_secret: "7x4iL4otjHE-CYJdGHs36WeWZB8",
+  cloud_name: process.env.CLOUD_API_NAME,
+  api_key: process.env.CLOUD_API_KEY,
+  api_secret: process.env.CLOUD_API_SECRET,
 });
 const storage = multer.diskStorage({
   destination: "../upload/images",
@@ -29,68 +30,37 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage: storage,
 });
-// get config vars
-dotenv.config();
 
-const Mail = require("@sendgrid/mail");
 Mail.setApiKey(process.env.SENDGRID_API_KEY);
-
-//passport
-const passport = require("passport");
-const flash = require("connect-flash");
-const session = require("express-session");
-// Passport Config
-require("../config/passport-config")(passport);
-// Express body parser
-app.use(express.urlencoded({ extended: true }));
-// Express session
-app.use(
-  session({
-    secret: "secret",
-    resave: true,
-    saveUninitialized: true,
-  })
-);
-
-// Passport middleware
-app.use(passport.initialize());
-app.use(passport.session());
-
-// Connect flash
-app.use(flash());
-
-// Global variables
-app.use(function (req, res, next) {
-  res.locals.success_msg = req.flash("success_msg");
-  res.locals.error_msg = req.flash("error_msg");
-  res.locals.error = req.flash("error");
-  next();
-});
-
-//end passport
 
 function generateAccessToken(username) {
   return jwt.sign(username, process.env.TOKEN_SECRET);
 }
 
-app.post("/user/register", async (req, res) => {
+app.post("/register", async (req, res) => {
   const salt = await bcrypt.genSalt();
   const userPassword = await bcrypt.hash(req.body.password, salt);
 
   if (req.body.password !== req.body.confirmpassword) {
     res.status(500).json({
+      error: 1,
       message: "password not matched",
+      data: null,
     });
   } else {
-    const user_details = new user({
+    const user_post = new user({
       username: req.body.username,
+      firstname: req.body.firstname,
+      lastname: req.body.lastname,
       password: userPassword,
       email: req.body.email,
     });
-    user_details.save(function (err, row) {
+    user_post.save(function (err, row) {
       if (err) {
         res.status(500).json({
-          message: "user not saved",
+          error: 1,
+          message: err.message,
+          data: null,
         });
       } else {
         const msg = {
@@ -107,18 +77,23 @@ app.post("/user/register", async (req, res) => {
           .catch((error) => {
             console.error(error);
           });
-          res.status(200).json({
-            message: "saved successfully",
-          });      }
+        res.status(200).json({
+          error: 0,
+          message: "saved successfully",
+          data: username,
+        });
+      }
     });
   }
 });
 
-app.post("/user/login", passport.authenticate("local"), function (req, res) {
+app.post("/login", passport.authenticate("local"), function (req, res) {
   var username = req.user.name;
   const token = generateAccessToken({ username: req.body.username });
-  res.json({
-    token: token,
+  res.status(200).json({
+    error: 0,
+    message: "user list",
+    data: token,
   });
 });
 
@@ -127,28 +102,37 @@ app.get("/user/get", jwtAuth, async function (req, res) {
     .findOne({ _id: req.user._id })
     .populate("userdata")
     .then((user) => {
-      res.json(user);
+      res.status(200).json({
+        error: 0,
+        message: "user list",
+        data: userData,
+      });
     });
 });
 
-app.put("/user/delete", jwtAuth, async function (req, res) {
+app.put("/delete", jwtAuth, async function (req, res) {
   var user_id = req.user.user_id;
   await user.deleteOne({ _id: user_id }, function (err, results) {
     if (err) {
-      res.status(501).send("no user mathch");
+      res.status(501).json({
+        error: 1,
+        message: "user not found",
+        data: null,
+      });
     } else {
-      res.status(200).send("user deleted");
+      res.status(200).json({
+        error: 0,
+        message: "user deleted",
+        data: null,
+      });
     }
   });
 });
 
-app.get("/user/list/:users/:page", function (req, res) {
+app.get("/list/:limit/:page", function (req, res) {
   pages_number = Number(req.params.page);
-  if (req.params.users == 1) {
-    skip = 0;
-  } else {
-    var skip_user_list = req.params.users * 10 - 10;
-  }
+  limit = req.params.limit;
+  var skip_user_list = limit * pages_number - pages_number;
   user
     .find()
     .skip(skip_user_list)
@@ -159,11 +143,15 @@ app.get("/user/list/:users/:page", function (req, res) {
           message: "no data found",
         });
       }
-      res.send(result);
+      res.status(200).json({
+        error: 0,
+        message: "user list",
+        data: userData,
+      });
     });
 });
 
-app.post("/user/address", auth, async function (req, res) {
+app.post("/address", auth, async function (req, res) {
   var userId = req.user.user_id;
   var address = req.body.address;
   var city = req.body.city;
@@ -181,7 +169,7 @@ app.post("/user/address", auth, async function (req, res) {
     if (err) {
       res.status(500).json({
         message: "address not saved",
-      });      
+      });
     }
     res.status(200).json({
       message: "Address Saved",
@@ -189,7 +177,7 @@ app.post("/user/address", auth, async function (req, res) {
   });
 });
 
-app.post("/user/forgot-password", async function (req, res) {
+app.post("/forgot-password", async function (req, res) {
   var username = req.body.username;
   user.findOne({ username: username }, async function (err, userDetails) {
     if (userDetails && userDetails._id) {
@@ -201,12 +189,14 @@ app.post("/user/forgot-password", async function (req, res) {
       token_post.save(function (err) {
         if (err) {
           res.status(500).json({
-            message: "token not saved",
-          });        
+            error: 0,
+            message: err.message,
+            data: null,
+          });
         }
         const msg = {
-          to: `${userDetails.email}`, // Change to your recipient
-          from: "ankit@excellencetechnologies.info", // Change to your verified sender
+          to: `${userDetails.email}`,
+          from: "ankit@excellencetechnologies.info",
           subject: "Sending with SendGrid is Fun",
           text: "and easy to do anywhere, even with Node.js",
           html: `<a href="http://localhost:4000/user/verify-reset-password/${token}">Click to Reset Password</a>`,
@@ -218,20 +208,30 @@ app.post("/user/forgot-password", async function (req, res) {
           .catch((error) => {
             console.error(error);
           });
-        res.status(200).send({ token: token });
+        res.status(200).json({
+          error: 0,
+          message: "token saved",
+          data: tokenId,
+        });
       });
     } else {
       res.status(500).json({
+        error: 1,
         message: "user not found",
+        data: null,
       });
     }
   });
 });
 
-app.post("/user/verify-reset-password/:token", async function (req, res, next) {
+app.post("/verify-reset-password/:token", async function (req, res, next) {
   var forgetToken = req.params.token;
-  if (forgetToken == null) return res.sendStatus(401);
-
+  if (forgetToken == null)
+    return res.status(401).json({
+      error: 0,
+      message: "invakid token",
+      data: null,
+    });
   AccessToken.findOne(
     { access_token: forgetToken },
     async function (err, tokenDetail) {
@@ -241,37 +241,34 @@ app.post("/user/verify-reset-password/:token", async function (req, res, next) {
           process.env.TOKEN_SECRET,
           (err, verifiedJwt) => {
             if (err) {
-              res.send(err.message);
+              res.status(500).json({
+                error: 0,
+                message: err.message,
+                data: null,
+              });
             } else {
-              user.findOne(
-                { username: verifiedJwt.username },
-                async function (err, userDetails) {
-                  if (userDetails && userDetails._id) {
-                    var newPassword = req.body.password;
-                    const salt = await bcrypt.genSalt();
-                    const userPassword = await bcrypt.hash(newPassword, salt);
-                    await user.updateOne(
-                      { _id: userDetails._id },
-                      { $set: { password: userPassword } },
-                      { new: true }
-                    );
-                    res.status(200).json({
-                      message: "password reset successfully",
-                    });
-                    next();
-                  } else {
-                    res.status(500).json({
-                      message: "user not found",
-                    });
-                  }
-                }
+              var newPassword = req.body.password;
+              const salt = bcrypt.genSalt();
+              const userPassword = bcrypt.hash(newPassword, salt);
+              user.updateOne(
+                { _id: userDetails._id },
+                { $set: { password: userPassword } },
+                { new: true }
               );
+              res.status(200).json({
+                error: 0,
+                message: "password reset successfully",
+                data: null,
+              });
+              next();
             }
           }
         );
       } else {
         res.status(500).json({
+          error: 1,
           message: "token not matched or expired",
+          data: null,
         });
       }
     }
@@ -279,12 +276,14 @@ app.post("/user/verify-reset-password/:token", async function (req, res, next) {
 });
 
 app.post(
-  "/user/profile-image",
+  "/profile-image",
   upload.single("image"),
   async function (req, res, next) {
     cloudinary.uploader.upload(req.file.path, function (err, result) {
       res.status(200).json({
-        img_url: result.url,
+        error: 0,
+        message: result.url,
+        data: null,
       });
     });
   }
