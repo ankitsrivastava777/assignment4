@@ -8,11 +8,8 @@ app.use(express.json());
 const passport = require("passport");
 const flash = require("connect-flash");
 const session = require("express-session");
-// Passport Config
 require("./config/passport-config")(passport);
-// Express body parser
 app.use(express.urlencoded({ extended: true }));
-// Express session
 app.use(
   session({
     secret: "secret",
@@ -20,12 +17,8 @@ app.use(
     saveUninitialized: true,
   })
 );
-
-// Passport middleware
 app.use(passport.initialize());
 app.use(passport.session());
-
-// Connect flash
 app.use(flash());
 
 // Global variables
@@ -35,9 +28,6 @@ app.use(function (req, res, next) {
   res.locals.error = req.flash("error");
   next();
 });
-
-
-
 
 app.use('/user', require('./routes/user'));
 
