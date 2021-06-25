@@ -32,7 +32,7 @@ app.use(function (req, res, next) {
 
 app.use('/user', require('./routes/user'));
 
-var server = app.listen(6300, function () {
+var server = app.listen(6600, function () {
   var host = server.address().address;
   var port = server.address().port;
   console.log("Example app listening at http://%s:%s", host, port);

@@ -34,7 +34,7 @@ const upload = multer({
 Mail.setApiKey(process.env.SENDGRID_API_KEY);
 
 function generateAccessToken(userId) {
-  return jwt.sign(userId, process.env.TOKEN_SECRET);
+  return jwt.sign(userId, process.env.TOKEN_SECRET, {expiresIn: '600s'});
 }
 
 app.post("/register", async (req, res) => {
@@ -292,7 +292,7 @@ app.post("/verify-reset-password/:token", async function (req, res, next) {
 });
 
 app.post(
-  "/profile-image",
+  "/profile-image", jwtAuth,
   upload.single("image"),
   async function (req, res, next) {
     cloudinary.uploader.upload(req.file.path, function (err, result) {
