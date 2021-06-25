@@ -1,6 +1,6 @@
 var mongoose = require("mongoose");
 var { conn } = require("../config/db");
-
+var { user } = require("../models/User")
 var user_address = mongoose.Schema(
     {
       user_id: {
@@ -21,12 +21,10 @@ var user_address = mongoose.Schema(
       phone_no: {
         type: String,
       },
-      userdata: [
-        {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "user_details",
-        },
-      ],
+      user: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "user"
+     },
     },
     {
       strict: true,

@@ -10,6 +10,8 @@ const flash = require("connect-flash");
 const session = require("express-session");
 require("./config/passport-config")(passport);
 app.use(express.urlencoded({ extended: true }));
+const dotenv = require("dotenv");
+dotenv.config();
 app.use(
   session({
     secret: "secret",

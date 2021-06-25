@@ -33,8 +33,8 @@ const upload = multer({
 
 Mail.setApiKey(process.env.SENDGRID_API_KEY);
 
-function generateAccessToken(username) {
-  return jwt.sign(username, process.env.TOKEN_SECRET);
+function generateAccessToken(userId) {
+  return jwt.sign(userId, process.env.TOKEN_SECRET);
 }
 
 app.post("/register", async (req, res) => {
@@ -80,7 +80,7 @@ app.post("/register", async (req, res) => {
         res.status(200).json({
           error: 0,
           message: "saved successfully",
-          data: username,
+          data: null,
         });
       }
     });
@@ -88,44 +88,39 @@ app.post("/register", async (req, res) => {
 });
 
 app.post("/login", passport.authenticate("local"), function (req, res) {
+  console.log(req.user.id);
   var username = req.user.name;
-  const token = generateAccessToken({ username: req.body.username });
+  console.log(req.user.id);
+  const token = generateAccessToken({ userId: req.user.id });
   res.status(200).json({
     error: 0,
     message: "user list",
-    data: token,
+    data: {
+      token: token,
+    },
   });
 });
 
-app.get("/user/get", jwtAuth, async function (req, res) {
-  user
+app.get("/get", jwtAuth, async function (req, res) {
+  await user
     .findOne({ _id: req.user._id })
-    .populate("userdata")
+    .populate("address")
     .then((user) => {
       res.status(200).json({
         error: 0,
         message: "user list",
-        data: userData,
+        data: user,
       });
     });
 });
 
 app.put("/delete", jwtAuth, async function (req, res) {
   var user_id = req.user.user_id;
-  await user.deleteOne({ _id: user_id }, function (err, results) {
-    if (err) {
-      res.status(501).json({
-        error: 1,
-        message: "user not found",
-        data: null,
-      });
-    } else {
-      res.status(200).json({
-        error: 0,
-        message: "user deleted",
-        data: null,
-      });
-    }
+  await user.deleteOne({ _id: user_id });
+  res.status(200).json({
+    error: 0,
+    message: "user deleted",
+    data: null,
   });
 });
 
@@ -140,7 +135,9 @@ app.get("/list/:limit/:page", function (req, res) {
     .exec(function (err, userData) {
       if (err) {
         res.status(500).json({
-          message: "no data found",
+          error: 0,
+          message: err.message,
+          data: null,
         });
       }
       res.status(200).json({
@@ -151,8 +148,8 @@ app.get("/list/:limit/:page", function (req, res) {
     });
 });
 
-app.post("/address", auth, async function (req, res) {
-  var userId = req.user.user_id;
+app.post("/address", jwtAuth, async function (req, res) {
+  var userId = req.user._id;
   var address = req.body.address;
   var city = req.body.city;
   var state = req.body.state;
@@ -172,12 +169,27 @@ app.post("/address", auth, async function (req, res) {
         message: err.message,
         data: null,
       });
+    } else {
+      user.update(
+        { _id: userId },
+        { $push: { address: address_post._id } },
+        function (err, result) {
+          if (err) {
+            res.status(500).json({
+              error: 1,
+              message: err.message,
+              data: null,
+            });
+          } else {
+            res.status(200).json({
+              error: 0,
+              message: "address saved",
+              data: null,
+            });
+          }
+        }
+      );
     }
-    res.status(200).json({
-      error: 0,
-      message: "address saved",
-      data: null,
-    });
   });
 });
 
@@ -215,7 +227,7 @@ app.post("/forgot-password", async function (req, res) {
         res.status(200).json({
           error: 0,
           message: "token saved",
-          data: tokenId,
+          data: null,
         });
       });
     } else {
@@ -233,7 +245,7 @@ app.post("/verify-reset-password/:token", async function (req, res, next) {
   if (forgetToken == null)
     return res.status(401).json({
       error: 0,
-      message: "invakid token",
+      message: "invalid token",
       data: null,
     });
   AccessToken.findOne(
@@ -259,6 +271,7 @@ app.post("/verify-reset-password/:token", async function (req, res, next) {
                 { $set: { password: userPassword } },
                 { new: true }
               );
+              jwt.destroy(forgetToken);
               res.status(200).json({
                 error: 0,
                 message: "password reset successfully",
@@ -286,8 +299,8 @@ app.post(
     cloudinary.uploader.upload(req.file.path, function (err, result) {
       res.status(200).json({
         error: 0,
-        message: result.url,
-        data: null,
+        message: "image upload successfully",
+        data: result.url,
       });
     });
   }

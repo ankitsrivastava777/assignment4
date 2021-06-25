@@ -4,22 +4,33 @@ const jwt = require("jsonwebtoken");
 
 var jwtAuth = function authenticateToken(req, res, next) {
   const authHeader = req.headers["authorization"];
-  if (authHeader == null) return res.sendStatus(401);
+  if (authHeader == null)
+    return res.status(500).json({
+      error: 1,
+      message: "token not matched",
+      data: null,
+    });
   jwt.verify(authHeader, process.env.TOKEN_SECRET, (err, verifiedJwt) => {
     if (err) {
-      res.status(500).json({
-        message: "password not match",
+      res.status(200).json({
+        error: 1,
+        message: err.message,
+        data: null,
       });
     } else {
+      console.log(verifiedJwt);
+
       user.findOne(
-        { username: verifiedJwt.username },
+        { _id: verifiedJwt.userId },
         function (err, userDetails) {
           if (userDetails && userDetails._id) {
             req.user = userDetails;
             next();
           } else {
             res.status(500).json({
+              error: 1,
               message: "user not found",
+              data: null,
             });
           }
         }
